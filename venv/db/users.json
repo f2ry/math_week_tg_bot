@@ -1,0 +1,26 @@
+{
+   "UID": {
+      "name": "NAME",
+      "class": "CLASS_NUMERO",
+      "score": 0,
+      "solved": {
+         "TASK_ID": "ANSWER"
+      }
+   },
+   "987008719": {
+      "name": "\u041c\u0430\u0442\u044e\u0448\u043a\u0438\u043d \u0414\u043c\u0438\u0442\u0440\u0438\u0439",
+      "class": "8\u0413",
+      "score": "1",
+      "solved": {
+         "11": "6"
+      }
+   },
+   "751621822": {
+      "name": "aaa ooo",
+      "class": "0o",
+      "score": 0,
+      "solved": {
+         "11": "1"
+      }
+   }
+}
