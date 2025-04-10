@@ -4,7 +4,7 @@ from json_work import *
 
 db_path = "db/users.json"
 tasks_path = "db/tasks.json"
-bot = telebot.TeleBot(token="7636186829:AAFx0s0MBVaCx4b_vsBgjjvGFksGtGkbPG8", parse_mode="HTML")
+bot = telebot.TeleBot(token="", parse_mode="HTML")
 
 @bot.message_handler(commands=["start"])
 def start(message):
