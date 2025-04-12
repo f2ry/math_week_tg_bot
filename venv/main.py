@@ -5,6 +5,7 @@ from json_work import *
 db_path = "db/users.json"
 tasks_path = "db/tasks.json"
 bot = telebot.TeleBot(token="", parse_mode="HTML")
+day = 2
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -25,7 +26,7 @@ def start(message):
 
 <b>Имя:</b> {user["name"]}
 <b>Класс:</b> {user["class"]}
-<b>Решенные задания:</b> {len(user["solved"].keys())} из СКОЛЬКО-ТО
+<b>Решенные задания:</b> {len(user["solved"].keys())} из {day}0
 
 <b>Доступные команды:</b>
 /start - показывает это сообщение.
@@ -94,7 +95,7 @@ def solve(message):
         message.text = "/start"
         start(message)
         return 0
-    '''ДОПИЛИТЬ ЧАСТЬ С ОТПРАВКОЙ ЗАДАНИЙ'''
+
     task_id = parsed[1]
     user = db_open(db_path)[str(chat_id)]
     if task_id in tasks.keys():
@@ -103,9 +104,14 @@ def solve(message):
             message.text = "/start"
             start(message)
             return 0
+        if int(task_id) not in range(int(str(day-1)+"1"), int(str(day)+"0")):
+            bot.send_message(chat_id, "Кажется, это задание не относится к сегодняшним...")
+            message.text = "/start"
+            start(message)
+            return 0
         kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         kb.add("Я пока не хочу это решать...")
-        bot.send_photo(chat_id, telebot.types.InputFile(f"db/tasks/pics/{task_id}.png"), caption="<i>Введите ответ ниже.</i>\n\n<b>Пожалуйста, вводите ответ внимательно и не торопитесь!\nНажмите кнопку ниже, чтобы отказаться от решения.</b>",
+        bot.send_photo(chat_id, telebot.types.InputFile(f"db/tasks/pics/day_{day}/{task_id}.png"), caption="<i>Введите ответ ниже.</i>\n\n<b>Пожалуйста, вводите ответ внимательно и не торопитесь!\nНажмите кнопку ниже, чтобы отказаться от решения.</b>",
                        reply_markup=kb)
         bot.register_next_step_handler(message, answer_validation, chat_id, user, tasks, task_id)
     else:
