@@ -106,6 +106,17 @@ def get_top_users():
     connection.close()
     return top_users
 
+def set_score(uid, score):
+    global db_path
+    connection = sq.connect(db_path)
+    cursor = connection.cursor()
+    score_set_request = f"UPDATE USERS SET SCORE = '{score}' WHERE ID = '{uid}'"
+    cursor.execute(score_set_request)
+    connection.commit()
+    cursor.close()
+    connection.close()
+    
+
 def json_to_sql(json_path, sql_path):
     connection = sq.connect(sql_path)
     cursor = connection.cursor()
@@ -115,6 +126,7 @@ def json_to_sql(json_path, sql_path):
         if select_user(user):
             continue
         add_user(user, json_data[user]["name"], json_data[user]["class"])
+        set_score(user, json_data[user]["score"])
         user_solutions = json_data[user]["solved"]
         for task in user_solutions.keys():
             add_answer(user, task, user_solutions[task])
