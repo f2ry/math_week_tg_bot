@@ -167,7 +167,37 @@ UID: {user[0]}
 Количество очков: {user[3]}
 '''
     bot.send_message(chat_id, result)
+
+@bot.message_handler(commands=["notification"])
+def notification(message):
+    chat_id = message.chat.id
+    if str(chat_id) not in config["admins"]:
+        bot.send_message(chat_id, "is not accessed.")
+        return 0
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.add("ОТМЕНА")
+    bot.send_message(chat_id, "<i>Введите сообщение, которое получат ВСЕ актуальные пользователи:</i>\nРаботает HTML-разметка.", reply_markup=kb)
+    bot.register_next_step_handler(message, notify_text)
+
+def notify_text(message):
+    chat_id = message.chat.id
+    all_users = get_all_users()
+    notify_message = message.text
+    if notify_message == "ОТМЕНА":
+        bot.send_message(chat_id, "Cancelled.", reply_markup=telebot.types.ReplyKeyboardRemove())
+        return 0
+    for id in all_users:
+        try:
+            bot.send_message(int(id[0]), notify_message)
+            return 0
+        except telebot.apihelper.ApiTelegramException:
+            print(f"{id[0]} is not found")
+    bot.send_message(chat_id, "Сообщение успешно отправлено. Кому-то точно...")
     
+        
+
+
+
 print("succ3ss")
 bot.infinity_polling()
 
