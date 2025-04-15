@@ -26,6 +26,16 @@ def select_user(uid):
         return user[0]
     return False
 
+def get_all_users():
+    global db_path
+    connection = sq.connect(db_path)
+    cursor = connection.cursor()
+    cursor.execute("SELECT ID FROM USERS")
+    users_ids = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return users_ids
+
 def remove_user(uid):
     global db_path
     connection = sq.connect(db_path)
@@ -133,5 +143,6 @@ def json_to_sql(json_path, sql_path):
     cursor.close()
     connection.close()
 
-json_to_sql("db/users.json", "db/db.db")
-print(get_top_users())
+# all_users_ids = get_all_users()
+# for id in all_users_ids:
+#     print(id[0])
