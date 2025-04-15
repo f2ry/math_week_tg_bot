@@ -1,8 +1,9 @@
 import telebot
 
 from json_work import *
+from db_work import *
 
-db_path = "db/users.json"
+json_path = "db/users.json"
 tasks_path = "db/tasks.json"
 config_path = "db/config.json"
 config = db_open(config_path)
@@ -15,22 +16,21 @@ bot = telebot.TeleBot(token=TOKEN, parse_mode="HTML")
 def start(message):
     parsed_start = message.text.split(" ", maxsplit=1)
     chat_id = message.chat.id
-    db = db_open(db_path)
-    if str(chat_id) not in db.keys():
+    if not select_user(str(chat_id)):
         bot.send_message(chat_id, "Привет! Кажется, мы с тобой раньше не виделись.\nДавай знакомиться! Как тебя зовут?\n<i>Введи свои ФИ</i>:")
-        bot.register_next_step_handler(message, registration, db)
+        bot.register_next_step_handler(message, registration)
         return 0
     else:
         if len(parsed_start) > 1:
             solve(message)
             return 0
-        user = db[str(chat_id)]
+        user = select_user(chat_id)
         bot.send_message(chat_id, f"""
 Привет, {message.from_user.username}!
 
-<b>Имя:</b> {user["name"]}
-<b>Класс:</b> {user["class"]}
-<b>Решенные задания:</b> {len(user["solved"].keys())} из {day}0
+<b>Имя:</b> {user[1]}
+<b>Класс:</b> {user[2]}
+<b>Решенные задания:</b> {count_solutions(chat_id)} из {day}0
 
 <b>Доступные команды:</b>
 /start - показывает это сообщение.
@@ -44,26 +44,18 @@ def start(message):
                          """)
     
 
-def registration(message, db):
+def registration(message):
     chat_id = message.chat.id
     name = message.text
     bot.send_message(chat_id, "В каком ты классе?\n<i>Введи номер и букву:</i>")
-    bot.register_next_step_handler(message, next_step, db, name)
+    bot.register_next_step_handler(message, next_step, name)
 
-def next_step(message, db, name):
+def next_step(message, name):
     chat_id = message.chat.id
     class_numero = message.text
-    db.update(
-        {str(chat_id): {
-            "name": name,
-            "class": class_numero,
-            "score": 0,
-        "solved": {
-                }
-   }})
-    db_rewrite(db_path, db)
+    add_user(chat_id, name, class_numero)
     bot.send_message(chat_id, "Вот мы и познакомились!\nОтправляю тебя в главное меню...")
-    print(f"\nnew user: {chat_id}!\nname: {name}\ncurrent users' counter: {len(db.keys())}")
+    print(f"\nnew user: {chat_id}!\nname: {name}\ncurrent users' counter: {count_users()}")
     message.text = "/start"
     start(message)
 
@@ -76,10 +68,8 @@ def remove(message):
     bot.register_next_step_handler(message, remove_confirmation, chat_id)
 
 def remove_confirmation(message, chat_id):
-    db = db_open(db_path)
     if message.text == "Да, я уверен":
-        db.pop(str(chat_id))
-        db_rewrite(db_path, db)
+        remove_user(chat_id)
         bot.send_message(chat_id, "Приятно было познакомиться... Надеюсь, мы еще увидимся!", reply_markup=telebot.types.ReplyKeyboardRemove())
         return 0
     if message.text == "Нет, я передумал":
@@ -104,9 +94,8 @@ def solve(message):
         return 0
 
     task_id = parsed[1]
-    user = db_open(db_path)[str(chat_id)]
     if task_id in tasks.keys():
-        if task_id in user["solved"].keys():
+        if is_solved(chat_id, task_id):
             bot.send_message(chat_id, "Вы уже решали это задание!")
             message.text = "/start"
             start(message)
@@ -128,11 +117,11 @@ def solve(message):
 - целые числа: -5 
 <b>Нажмите кнопку ниже, чтобы отказаться от решения.</b>''',
                        reply_markup=kb)
-        bot.register_next_step_handler(message, answer_validation, chat_id, user, tasks, task_id)
+        bot.register_next_step_handler(message, answer_validation, chat_id, tasks, task_id)
     else:
         bot.send_message(chat_id, "Задания в базе нет.")
 
-def answer_validation(message, chat_id, user, tasks, task_id):
+def answer_validation(message, chat_id, tasks, task_id):
     answer = message.text
     if answer == "Я пока не хочу это решать...":
         bot.send_message(chat_id, "Как скажешь! Телепортирую тебя в главное меню...", reply_markup=telebot.types.ReplyKeyboardRemove())
@@ -140,11 +129,8 @@ def answer_validation(message, chat_id, user, tasks, task_id):
         start(message)
         return 0 
     if answer.lower() == tasks[task_id].lower():
-        user["score"] = int(user["score"]) + 1
-    user["solved"].update({task_id: answer})
-    db = db_open(db_path)
-    db[str(chat_id)].update(user)
-    db_rewrite(db_path, db)
+        add_score(chat_id)
+    add_answer(chat_id, task_id, answer)
     bot.send_message(chat_id, "<i>Ваш ответ записан. Надеюсь, он не был случайным...</i>", reply_markup=telebot.types.ReplyKeyboardRemove())
     message.text = "/start"
     start(message)
@@ -171,18 +157,14 @@ def day_change(message):
 @bot.message_handler(commands=["top"])
 def top(message):
     chat_id = message.chat.id
-    db = db_open(db_path)
-    users_score = {}
-    for user in db:
-        users_score.update({user: int(db[user]["score"])})
-    sorted_score = dict(sorted(users_score.items(), key=lambda item: item[1], reverse=True))
+    top_users = get_top_users()
     result = ''
-    right_range = len(sorted_score.keys()) if len(sorted_score.keys()) < 5 else 5
-    for user in list(sorted_score.keys())[0:right_range]:
+    for user in top_users:
         result += f'''
-UID: {user}
-Имя: {db[user]["name"]}
-Количество очков: {sorted_score[user]}
+UID: {user[0]}
+Имя: {user[1]}
+Класс: {user[2]}
+Количество очков: {user[3]}
 '''
     bot.send_message(chat_id, result)
     
